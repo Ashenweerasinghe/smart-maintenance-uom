@@ -169,7 +169,7 @@ az webapp config appsettings set -n smart-maintenance-uom -g $RG --settings \
 az webapp deploy -n smart-maintenance-uom -g $RG --src-path deploy.zip --type zip
 ```
 
-**CI/CD (optional):** A ready-to-use GitHub Actions workflow (`.github/workflows/azure-deploy.yml`) is included in the project. Once enabled, pushes to `main` auto-deploy to App Service using the publish profile stored as the `AZUREAPPSERVICE_PUBLISHPROFILE` repository secret. To enable it: grant the GitHub token `workflow` scope (`gh auth refresh -s workflow`), add the publish profile secret, and push the workflow file. The live deployment above was performed directly with `az webapp deploy`.
+**CI/CD:** A ready-to-use GitHub Actions workflow (`.github/workflows/azure-deploy.yml`) is included in the project. Pushes to `main` auto-deploy to App Service using the publish profile stored as the `AZUREAPPSERVICE_PUBLISHPROFILE` repository secret. 
 
 ## 10. API / Web Application Usage
 
