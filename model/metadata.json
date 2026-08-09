@@ -1,0 +1,60 @@
+{
+  "model_type": "RandomForestClassifier",
+  "target": "Machine failure",
+  "classes": {
+    "0": "No Failure",
+    "1": "Failure"
+  },
+  "decision_threshold": 0.28,
+  "numeric_features": [
+    {
+      "name": "Air temperature",
+      "min": 295.3,
+      "max": 304.5,
+      "median": 300.1
+    },
+    {
+      "name": "Process temperature",
+      "min": 305.7,
+      "max": 313.8,
+      "median": 310.1
+    },
+    {
+      "name": "Rotational speed",
+      "min": 1168.0,
+      "max": 2886.0,
+      "median": 1503.0
+    },
+    {
+      "name": "Torque",
+      "min": 3.8,
+      "max": 76.6,
+      "median": 40.1
+    },
+    {
+      "name": "Tool wear",
+      "min": 0.0,
+      "max": 253.0,
+      "median": 108.0
+    }
+  ],
+  "categorical_features": [
+    {
+      "name": "Type",
+      "values": [
+        "H",
+        "L",
+        "M"
+      ]
+    }
+  ],
+  "metrics": {
+    "accuracy": 0.982,
+    "precision_failure": 0.75,
+    "recall_failure": 0.7058823529411765,
+    "f1_failure": 0.7272727272727273,
+    "roc_auc": 0.9633570819632201
+  },
+  "dataset": "AI4I 2020 Predictive Maintenance Dataset (UCI ML Repository, id=601)",
+  "n_samples": 10000
+}

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Predictive Maintenance Platform</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>🛠️ Smart Predictive Maintenance Platform</h1>
+    <p class="subtitle">
+      Machine-failure prediction (scikit-learn) &amp; a Gen-AI Maintenance Assistant (Azure AI Foundry)
+    </p>
+  </header>
+
+  <main>
+    <!-- ============ Prediction ============ -->
+    <section class="card">
+      <h2>1 · Failure Predictor</h2>
+      <p class="hint">
+        Model: {{ meta.model_type }} · ROC-AUC
+        {{ "%.3f"|format(meta.metrics.roc_auc) }} · trained on {{ meta.n_samples }} samples.
+      </p>
+      <form id="predict-form">
+        <div class="grid">
+          {% for f in meta.numeric_features %}
+          <label>
+            {{ f.name }}
+            <input type="number" step="any" name="{{ f.name }}"
+                   value="{{ '%.1f'|format(f.median) }}"
+                   min="{{ f.min }}" max="{{ f.max }}" required />
+            <span class="range">range {{ '%.0f'|format(f.min) }}–{{ '%.0f'|format(f.max) }}</span>
+          </label>
+          {% endfor %}
+          <label>
+            Type (product quality)
+            <select name="Type">
+              {% for v in meta.categorical_features[0]['values'] %}
+              <option value="{{ v }}">{{ v }}</option>
+              {% endfor %}
+            </select>
+            <span class="range">L=low · M=medium · H=high</span>
+          </label>
+        </div>
+        <button type="submit">Predict</button>
+      </form>
+      <div id="predict-result" class="result hidden"></div>
+    </section>
+
+    <!-- ============ Chatbot ============ -->
+    <section class="card">
+      <h2>2 · Maintenance Assistant</h2>
+      {% if not chat_configured %}
+      <p class="hint warn">⚠️ Assistant not configured yet — set the AZURE_OPENAI_* environment variables after deploying the Foundry model.</p>
+      {% else %}
+      <p class="hint">Ask about troubleshooting, or click “Explain” on a prediction above.</p>
+      {% endif %}
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form">
+        <input type="text" id="chat-input" placeholder="e.g. Tool wear is 210 min — what should I check?" autocomplete="off" />
+        <button type="submit">Send</button>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <a href="/docs">REST API docs (Swagger)</a> ·
+    <a href="/metadata">Model metadata</a> ·
+    <a href="/health">Health</a>
+  </footer>
+
+  <script>
+    let lastPrediction = null;
+
+    document.getElementById("predict-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = {
+        air_temperature: parseFloat(fd.get("Air temperature")),
+        process_temperature: parseFloat(fd.get("Process temperature")),
+        rotational_speed: parseFloat(fd.get("Rotational speed")),
+        torque: parseFloat(fd.get("Torque")),
+        tool_wear: parseFloat(fd.get("Tool wear")),
+        type: fd.get("Type"),
+      };
+      const box = document.getElementById("predict-result");
+      box.className = "result"; box.textContent = "Predicting…";
+      try {
+        const r = await fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const d = await r.json();
+        lastPrediction = `Prediction: ${d.prediction_label}, failure probability ${(d.failure_probability*100).toFixed(1)}%, risk ${d.risk_level}.`;
+        const cls = d.prediction === 1 ? "danger" : "safe";
+        box.className = "result " + cls;
+        box.innerHTML =
+          `<strong>${d.prediction_label}</strong> — risk: <strong>${d.risk_level}</strong><br>` +
+          `Failure probability: <strong>${(d.failure_probability*100).toFixed(1)}%</strong> ` +
+          `(threshold ${(d.decision_threshold*100).toFixed(0)}%)` +
+          `<button type="button" id="explain-btn">🤖 Explain this</button>`;
+        document.getElementById("explain-btn").addEventListener("click", () => {
+          sendChat("Please explain this prediction and recommend next steps.", lastPrediction);
+        });
+      } catch (err) {
+        box.className = "result danger"; box.textContent = "Error: " + err;
+      }
+    });
+
+    const chatLog = document.getElementById("chat-log");
+    function addBubble(text, who) {
+      const div = document.createElement("div");
+      div.className = "bubble " + who;
+      div.textContent = text;
+      chatLog.appendChild(div);
+      chatLog.scrollTop = chatLog.scrollHeight;
+      return div;
+    }
+
+    async function sendChat(message, predictionContext) {
+      addBubble(message, "user");
+      const thinking = addBubble("…", "bot");
+      try {
+        const r = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, prediction_context: predictionContext || lastPrediction }),
+        });
+        const d = await r.json();
+        thinking.textContent = d.reply;
+      } catch (err) {
+        thinking.textContent = "Error: " + err;
+      }
+    }
+
+    document.getElementById("chat-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = document.getElementById("chat-input");
+      const msg = input.value.trim();
+      if (!msg) return;
+      input.value = "";
+      sendChat(msg);
+    });
+  </script>
+</body>
+</html>
